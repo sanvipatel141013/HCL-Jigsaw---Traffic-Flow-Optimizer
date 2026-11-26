@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traffic Flow Optimizer • Four-Way Junction (HCL Jigsaw)</title>
+  <style>
+    :root {
+      --bg-main: #0B1120;
+      --panel-bg: #0F172A;
+      --card-bg: #1E293B;
+      --card-border: #334155;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --accent-cyan: #0EA5E9;
+      --accent-amber: #F59E0B;
+      --accent-green: #10B981;
+      --accent-red: #EF4444;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: row;
+      background: var(--panel-bg);
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+      max-width: 1380px;
+      width: 100%;
+      height: 800px;
+    }
+
+    /* Left Canvas Section */
+    .canvas-section {
+      position: relative;
+      width: 820px;
+      height: 800px;
+      background: #22342A;
+      flex-shrink: 0;
+    }
+
+    #junctionCanvas {
+      display: block;
+      width: 820px;
+      height: 800px;
+    }
+
+    /* Right Dashboard Section */
+    .sidebar-section {
+      width: 560px;
+      height: 800px;
+      background: var(--panel-bg);
+      border-left: 2px solid var(--card-border);
+      padding: 18px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+
+    /* Scrollbar */
+    .sidebar-section::-webkit-scrollbar {
+      width: 6px;
+    }
+    .sidebar-section::-webkit-scrollbar-thumb {
+      background: var(--card-border);
+      border-radius: 3px;
+    }
+
+    /* Header */
+    .header-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+    }
+
+    .header-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .header-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Card styling */
+    .dashboard-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    /* Controls Grid */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn {
+      background: #334155;
+      border: 1px solid #475569;
+      color: var(--text-main);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    .btn:hover {
+      background: #475569;
+      border-color: #64748B;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-main-text {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-sub-text {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .btn.active-blue {
+      background: #0284C7;
+      border-color: #38BDF8;
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.3);
+    }
+    .btn.active-blue .btn-sub-text {
+      color: #E0F2FE;
+    }
+
+    .btn.active-green {
+      background: #059669;
+      border-color: #34D399;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+    }
+    .btn.active-green .btn-sub-text {
+      color: #D1FAE5;
+    }
+
+    .btn.active-red {
+      background: #DC2626;
+      border-color: #F87171;
+    }
+
+    .controls-sub-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .controls-sub-row .btn {
+      padding: 6px 8px;
+    }
+
+    /* Active Phase Card */
+    .phase-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .phase-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .active-road-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: 0.5px;
+    }
+
+    .phase-badge-text {
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .clock-display {
+      text-align: right;
+    }
+
+    .countdown-number {
+      font-size: 28px;
+      font-weight: 900;
+      font-family: monospace;
+      line-height: 1;
+    }
+
+    .countdown-total {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 10px;
+      background: #0F172A;
+      border-radius: 5px;
+      border: 1px solid var(--card-border);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 100%;
+      border-radius: 4px;
+      transition: width 0.05s linear;
+    }
+
+    .phase-footer {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Data Table */
+    .table-container {
+      padding: 8px 10px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .data-table th {
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 700;
+      padding: 5px 6px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .data-table td {
+      padding: 5px 6px;
+      color: var(--text-main);
+    }
+
+    .data-table tr.active-row {
+      background: rgba(14, 165, 233, 0.15);
+      border-radius: 4px;
+      box-shadow: inset 0 0 0 1px var(--accent-cyan);
+    }
+
+    .data-table tr.active-row td {
+      color: #38BDF8;
+      font-weight: 700;
+    }
+
+    .dot-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    .dot-green { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+    .dot-yellow { background: var(--accent-amber); box-shadow: 0 0 6px var(--accent-amber); }
+    .dot-red { background: var(--accent-red); box-shadow: 0 0 6px var(--accent-red); }
+
+    .table-footer {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--card-border);
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Experiment Insight Callout */
+    .exp-callout {
+      border-left: 4px solid var(--accent-cyan);
+      background: #172554;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .exp-callout.surge {
+      border-left-color: var(--accent-green);
+      background: #064E3B;
+    }
+
+    .exp-callout-title {
+      font-weight: 700;
+      color: #BAE6FD;
+      margin-bottom: 2px;
+    }
+
+    .exp-callout.surge .exp-callout-title {
+      color: #A7F3D0;
+    }
+
+    /* Legend Box */
+    .legend-box {
+      font-size: 11px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    /* Disclaimer Box */
+    .disclaimer-box {
+      background: #2D1515;
+      border: 1px solid #EF4444;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 10.5px;
+      line-height: 1.4;
+      color: #FECACA;
+    }
+
+    .disclaimer-title {
+      font-weight: 800;
+      color: #F87171;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1280px) {
+      .app-container {
+        flex-direction: column;
+        height: auto;
+      }
+      .canvas-section {
+        width: 100%;
+        height: 600px;
+      }
+      #junctionCanvas {
+        width: 100%;
+        height: 600px;
+      }
+      .sidebar-section {
+        width: 100%;
+        height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Left: 4-Way Traffic Junction Canvas -->
+    <div class="canvas-section">
+      <canvas id="junctionCanvas" width="820" height="800"></canvas>
+    </div>
+
+    <!-- Right: Modern Slate Dashboard -->
+    <div class="sidebar-section">
+      <!-- 1. Header Banner -->
+      <div>
+        <div class="header-tag">HCL Jigsaw 2026 • Grade 8 Project</div>
+        <div class="header-title">Traffic Flow Optimizer</div>
+        <div class="header-sub">Comparative Signal Optimization: Fixed vs Adaptive Timing</div>
+      </div>
+
+      <!-- 2. Interactive Control Panel -->
+      <div class="dashboard-card">
+        <div class="controls-grid">
+          <button id="btnMode" class="btn active-blue">
+            <span class="btn-main-text">MODE: SMART SIGNAL</span>
+            <span class="btn-sub-text">Proportional Adaptive</span>
+          </button>
+          <button id="btnExp" class="btn">
+            <span class="btn-main-text">EXP 1: BASELINE</span>
+            <span class="btn-sub-text">Road B = 90 veh [Sim]</span>
+          </button>
+        </div>
+        <div class="controls-sub-row">
+          <button id="btnSpeed" class="btn">
+            <span class="btn-main-text">SPEED: 1x</span>
+          </button>
+          <button id="btnPause" class="btn">
+            <span class="btn-main-text">PAUSE [||]</span>
+          </button>
+          <button id="btnReset" class="btn">
+            <span class="btn-main-text">RESET SIM</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Active Signal Phase Card -->
+      <div class="dashboard-card phase-card">
+        <div class="phase-header-row">
+          <div>
+            <div id="activeRoadTitle" class="active-road-title">ACTIVE: ROAD A (NORTH)</div>
+            <div id="phaseBadgeText" class="phase-badge-text" style="color: var(--accent-green);">
+              PHASE: GREEN SIGNAL (TRAFFIC FLOWING)
+            </div>
+          </div>
+          <div class="clock-display">
+            <div id="countdownClock" class="countdown-number" style="color: var(--accent-green);">20.8s</div>
+            <div id="countdownTotal" class="countdown-total">TOTAL: 20.8s</div>
+          </div>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progressBarFill" class="progress-bar-fill" style="background: var(--accent-green); width: 100%;"></div>
+        </div>
+        <div id="phaseFooter" class="phase-footer">
+          Cycle #1 • Next Phase Sequence: Road B (East)
+        </div>
+      </div>
+
+      <!-- 4. Comparative Signal Timing Table -->
+      <div class="dashboard-card table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Road Approach</th>
+              <th>Sim. Count</th>
+              <th>Fixed Time</th>
+              <th>Smart Time</th>
+              <th>Signal</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Dynamic rows injected by JS -->
+          </tbody>
+        </table>
+        <div class="table-footer">
+          <span id="lblTotalVehicles">Total Cycle: 240 simulated vehicles</span>
+          <span>Green Pool: 100.0s</span>
+        </div>
+      </div>
+
+      <!-- 5. Experiment 2 Demonstration Callout -->
+      <div id="expCalloutBox" class="exp-callout">
+        <div id="expCalloutTitle" class="exp-callout-title">[EXPERIMENT 1 ACTIVE] Baseline Traffic Volumes</div>
+        <div id="expCalloutDesc">
+          • Road A: 50 | Road B: 90 | Road C: 40 | Road D: 60 vehicles (Simulated).<br>
+          • Click <b>'EXP 1: BASELINE'</b> to demonstrate Road B traffic surge (120 vehicles).
+        </div>
+      </div>
+
+      <!-- 6. Visual Legend -->
+      <div class="dashboard-card legend-box">
+        <span style="font-weight: 700; color: var(--text-main); width: 100%; margin-bottom: 2px;">Visual Legend & Signal Rules</span>
+        <div class="legend-item"><span class="dot-indicator dot-green"></span>Green: Go</div>
+        <div class="legend-item"><span class="dot-indicator dot-yellow"></span>Yellow: Clear (3.5s)</div>
+        <div class="legend-item"><span class="dot-indicator dot-red"></span>Red: Stop at Line</div>
+        <div class="legend-item"><span class="dot-indicator" style="background:#FF2020;"></span>Red Glow: Brake Lights</div>
+      </div>
+
+      <!-- 7. Mandatory Grade 8 HCL Jigsaw Disclaimer Box -->
+      <div class="disclaimer-box">
+        <div class="disclaimer-title">⚠️ SIMULATED DATA NOTICE (HCL Jigsaw Grade 8 Scope)</div>
+        <div>
+          • All vehicle quantities & traffic flows in this model are <b>COMPUTER SIMULATED</b>.<br>
+          • This project demonstrates mathematical signal allocation logic.<br>
+          • No claim is made that actual congestion or waiting times have been experimentally reduced.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       TRAFFIC FLOW OPTIMIZER - JAVASCRIPT ENGINE
+       Grade 8 HCL Jigsaw Project
+       ========================================================================== */
+
+    // Constants & Geometry
+    const CANVAS_WIDTH = 820;
+    const CANVAS_HEIGHT = 800;
+    const CENTER_X = CANVAS_WIDTH / 2; // 410
+    const CENTER_Y = CANVAS_HEIGHT / 2; // 400
+    const ROAD_WIDTH = 150;
+    const HALF_ROAD = ROAD_WIDTH / 2; // 75
+
+    // Signal Timing Constants
+    const FIXED_GREEN_TIME = 25.0; // 25s per road
+    const YELLOW_TIME = 3.5;       // Safe yellow clearance
+    const ALL_RED_TIME = 2.0;      // Safe all-red clearance
+    const TOTAL_SMART_GREEN_POOL = 100.0;
+
+    // Simulated Datasets (Requirements 6 & 7)
+    const SIMULATED_DATA_EXP1 = { ROAD_A: 50, ROAD_B: 90, ROAD_C: 40, ROAD_D: 60 };
+    const SIMULATED_DATA_EXP2 = { ROAD_A: 50, ROAD_B: 120, ROAD_C: 40, ROAD_D: 60 };
+
+    const ROAD_ORDER = ['ROAD_A', 'ROAD_B', 'ROAD_C', 'ROAD_D'];
+    const ROAD_NAMES = {
+      ROAD_A: 'Road A (North)',
+      ROAD_B: 'Road B (East)',
+      ROAD_C: 'Road C (South)',
+      ROAD_D: 'Road D (West)'
+    };
+
+    // Stop Line Coordinates
+    const STOP_LINE_OFFSET = HALF_ROAD + 22 + 8; // ~105px
+    const STOP_LINES = {
+      ROAD_A: CENTER_Y - STOP_LINE_OFFSET, // 295
+      ROAD_B: CENTER_X + STOP_LINE_OFFSET, // 515
+      ROAD_C: CENTER_Y + STOP_LINE_OFFSET, // 505
+      ROAD_D: CENTER_X - STOP_LINE_OFFSET  // 305
+    };
+
+    // Vehicle Palette Profiles
+    const VEHICLE_PALETTES = [
+      { name: 'Sedan Cyan', body: '#1E90FF', roof: '#1473D2', len: 38, width: 22, speed: 2.3 },
+      { name: 'Sedan Red', body: '#DC2626', roof: '#B91C1C', len: 38, width: 22, speed: 2.4 },
+      { name: 'SUV Charcoal', body: '#4B5563', roof: '#374151', len: 44, width: 24, speed: 2.1 },
+      { name: 'Cab Yellow', body: '#F59E0B', roof: '#D97706', len: 38, width: 22, speed: 2.3 },
+      { name: 'Bus Teal', body: '#14B8A6', roof: '#0D9488', len: 58, width: 25, speed: 1.8 },
+      { name: 'Sedan White', body: '#F1F5F9', roof: '#CBD5E1', len: 38, width: 22, speed: 2.2 },
+      { name: 'SUV Emerald', body: '#10B981', roof: '#059669', len: 44, width: 24, speed: 2.1 }
+    ];
+
+    /* --- Traffic Controller Class --- */
+    class TrafficController {
+      constructor() {
+        this.mode = 'SMART'; // 'SMART' or 'FIXED'
+        this.experiment = 1; // 1 or 2
+        this.currentRoadIndex = 0;
+        this.currentPhase = 'GREEN'; // 'GREEN', 'YELLOW', 'ALL_RED'
+        this.phaseTimer = 0.0;
+        this.cycleCount = 1;
+
+        this.fixedTimings = { ROAD_A: 25.0, ROAD_B: 25.0, ROAD_C: 25.0, ROAD_D: 25.0 };
+        this.smartTimings = {};
+        this.recalculateTimings();
+      }
+
+      get currentRoad() {
+        return ROAD_ORDER[this.currentRoadIndex];
+      }
+
+      get nextRoad() {
+        const nextIdx = (this.currentRoadIndex + 1) % ROAD_ORDER.length;
+        return ROAD_ORDER[nextIdx];
+      }
+
+      getSimulatedVolumes() {
+        return this.experiment === 1 ? { ...SIMULATED_DATA_EXP1 } : { ...SIMULATED_DATA_EXP2 };
+      }
+
+      recalculateTimings() {
+        const volumes = this.getSimulatedVolumes();
+        const total = volumes.ROAD_A + volumes.ROAD_B + volumes.ROAD_C + volumes.ROAD_D;
+        let allocated = 0.0;
+
+        ROAD_ORDER.forEach((road, i) => {
+          if (i === ROAD_ORDER.length - 1) {
+            this.smartTimings[road] = +(TOTAL_SMART_GREEN_POOL - allocated).toFixed(1);
+          } else {
+            const val = +((volumes[road] / total) * TOTAL_SMART_GREEN_POOL).toFixed(1);
+            this.smartTimings[road] = val;
+            allocated += val;
+          }
+        });
+      }
+
+      getCurrentPhaseDuration() {
+        if (this.currentPhase === 'GREEN') {
+          return this.mode === 'FIXED' ? this.fixedTimings[this.currentRoad] : this.smartTimings[this.currentRoad];
+        } else if (this.currentPhase === 'YELLOW') {
+          return YELLOW_TIME;
+        } else {
+          return ALL_RED_TIME;
+        }
+      }
+
+      getRemainingPhaseTime() {
+        const dur = this.getCurrentPhaseDuration();
+        return Math.max(0.0, dur - this.phaseTimer);
+      }
+
+      getProgressFraction() {
+        const dur = this.getCurrentPhaseDuration();
+        return dur <= 0 ? 1.0 : Math.min(1.0, this.phaseTimer / dur);
+      }
+
+      toggleMode() {
+        this.mode = this.mode === 'SMART' ? 'FIXED' : 'SMART';
+        if (this.currentPhase === 'GREEN') {
+          const newDur = this.getCurrentPhaseDuration();
+          if (this.phaseTimer >= newDur) {
+            this.phaseTimer = Math.max(0.0, newDur - 1.0);
+          }
+        }
+      }
+
+      toggleExperiment() {
+        this.experiment = this.experiment === 1 ? 2 : 1;
+        this.recalculateTimings();
+      }
+
+      update(dt) {
+        this.phaseTimer += dt;
+        const dur = this.getCurrentPhaseDuration();
+
+        if (this.phaseTimer >= dur) {
+          this.phaseTimer = 0.0;
+          if (this.currentPhase === 'GREEN') {
+            this.currentPhase = 'YELLOW';
+          } else if (this.currentPhase === 'YELLOW') {
+            this.currentPhase = 'ALL_RED';
+          } else if (this.currentPhase === 'ALL_RED') {
+            this.currentPhase = 'GREEN';
+            this.currentRoadIndex = (this.currentRoadIndex + 1) % ROAD_ORDER.length;
+            if (this.currentRoadIndex === 0) {
+              this.cycleCount++;
+            }
+          }
+        }
+      }
+
+      getSignalState(road) {
+        if (this.currentPhase === 'ALL_RED') return 'RED';
+        if (road === this.currentRoad) {
+          return this.currentPhase === 'GREEN' ? 'GREEN' : 'YELLOW';
+        }
+        return 'RED';
+      }
+
+      reset() {
+        this.currentRoadIndex = 0;
+        this.currentPhase = 'GREEN';
+        this.phaseTimer = 0.0;
+        this.cycleCount = 1;
+        this.recalculateTimings();
+      }
+    }
+
+    /* --- Vehicle Class --- */
+    class Vehicle {
+      constructor(road, lane) {
+        this.road = road;
+        this.lane = lane; // 0: inner, 1: outer
+        this.palette = VEHICLE_PALETTES[Math.floor(Math.random() * VEHICLE_PALETTES.length)];
+        this.length = this.palette.len;
+        this.width = this.palette.width;
+        this.maxSpeed = this.palette.speed;
+        this.speed = this.maxSpeed;
+        this.accel = 0.08;
+        this.decel = 0.12;
+
+        this.isBraking = false;
+        this.hasCrossed = false;
+        this.stopped = false;
+
+        this._initPosition();
+      }
+
+      _initPosition() {
+        const offset = this.lane === 0 ? 22 : 57;
+        if (this.road === 'ROAD_A') {
+          // North -> moving South
+          this.x = CENTER_X - offset;
+          this.y = -this.length - 10;
+          this.dx = 0;
+          this.dy = 1;
+          this.heading = 180; // degrees
+        } else if (this.road === 'ROAD_B') {
+          // East -> moving West
+          this.x = CANVAS_WIDTH + this.length + 10;
+          this.y = CENTER_Y - offset;
+          this.dx = -1;
+          this.dy = 0;
+          this.heading = 270;
+        } else if (this.road === 'ROAD_C') {
+          // South -> moving North
+          this.x = CENTER_X + offset;
+          this.y = CANVAS_HEIGHT + this.length + 10;
+          this.dx = 0;
+          this.dy = -1;
+          this.heading = 0;
+        } else if (this.road === 'ROAD_D') {
+          // West -> moving East
+          this.x = -this.length - 10;
+          this.y = CENTER_Y + offset;
+          this.dx = 1;
+          this.dy = 0;
+          this.heading = 90;
+        }
+      }
+
+      getFrontCoord() {
+        if (this.road === 'ROAD_A') return this.y + this.length / 2;
+        if (this.road === 'ROAD_B') return this.x - this.length / 2;
+        if (this.road === 'ROAD_C') return this.y - this.length / 2;
+        if (this.road === 'ROAD_D') return this.x + this.length / 2;
+      }
+
+      getRearCoord() {
+        if (this.road === 'ROAD_A') return this.y - this.length / 2;
+        if (this.road === 'ROAD_B') return this.x + this.length / 2;
+        if (this.road === 'ROAD_C') return this.y + this.length / 2;
+        if (this.road === 'ROAD_D') return this.x - this.length / 2;
+      }
+
+      getDistanceToStopLine() {
+        const stopLine = STOP_LINES[this.road];
+        const front = this.getFrontCoord();
+        if (this.road === 'ROAD_A') return stopLine - front;
+        if (this.road === 'ROAD_B') return front - stopLine;
+        if (this.road === 'ROAD_C') return front - stopLine;
+        if (this.road === 'ROAD_D') return stopLine - front;
+      }
+
+      update(signalState, leadCar, dt) {
+        const distToStop = this.getDistanceToStopLine();
+
+        if (!this.hasCrossed && distToStop <= 0) {
+          this.hasCrossed = true;
+        }
+
+        let targetSpeed = this.maxSpeed;
+        let mustStop = false;
+
+        // 1. Obey Signal Logic
+        if (!this.hasCrossed) {
+          if (signalState === 'RED') {
+            if (distToStop >= 0 && distToStop <= 160) {
+              mustStop = true;
+              const cushion = Math.max(0, distToStop - 4.0);
+              targetSpeed = cushion <= 2.0 ? 0.0 : Math.min(targetSpeed, (cushion / 70.0) * this.maxSpeed);
+            }
+          } else if (signalState === 'YELLOW') {
+            if (distToStop >= 25 && distToStop <= 140) {
+              mustStop = true;
+              const cushion = Math.max(0, distToStop - 4.0);
+              targetSpeed = cushion <= 2.0 ? 0.0 : Math.min(targetSpeed, (cushion / 60.0) * this.maxSpeed);
+            } else if (distToStop < 25) {
+              mustStop = false; // Point of no return: clear safely
+            }
+          }
+        }
+
+        // 2. Car-Following Safety Gap
+        if (leadCar) {
+          let gap = 999;
+          if (this.road === 'ROAD_A') gap = leadCar.getRearCoord() - this.getFrontCoord();
+          if (this.road === 'ROAD_B') gap = this.getFrontCoord() - leadCar.getRearCoord();
+          if (this.road === 'ROAD_C') gap = this.getFrontCoord() - leadCar.getRearCoord();
+          if (this.road === 'ROAD_D') gap = leadCar.getRearCoord() - this.getFrontCoord();
+
+          const minSafeGap = 18.0;
+          const brakingGap = 55.0;
+
+          if (gap <= minSafeGap) {
+            mustStop = true;
+            targetSpeed = 0.0;
+          } else if (gap < brakingGap) {
+            const gapFactor = (gap - minSafeGap) / (brakingGap - minSafeGap);
+            targetSpeed = Math.min(targetSpeed, Math.max(0, gapFactor * Math.min(this.maxSpeed, leadCar.speed + 0.3)));
+            if (targetSpeed < this.speed) mustStop = true;
+          }
+        }
+
+        // Complete Stop condition
+        if (mustStop && distToStop <= 4.0 && !this.hasCrossed) {
+          targetSpeed = 0.0;
+        }
+
+        // Smooth speed adjustment
+        if (this.speed < targetSpeed) {
+          this.speed = Math.min(targetSpeed, this.speed + this.accel);
+          this.isBraking = false;
+        } else if (this.speed > targetSpeed) {
+          this.speed = Math.max(targetSpeed, this.speed - this.decel);
+          this.isBraking = true;
+        } else {
+          this.isBraking = false;
+        }
+
+        if (targetSpeed === 0.0 && this.speed <= 0.08) {
+          this.speed = 0.0;
+          this.stopped = true;
+        } else {
+          this.stopped = (this.speed <= 0.05);
+        }
+
+        this.x += this.dx * this.speed;
+        this.y += this.dy * this.speed;
+      }
+
+      isOffScreen() {
+        const m = 80;
+        if (this.road === 'ROAD_A' && this.y > CANVAS_HEIGHT + m) return true;
+        if (this.road === 'ROAD_B' && this.x < -m) return true;
+        if (this.road === 'ROAD_C' && this.y < -m) return true;
+        if (this.road === 'ROAD_D' && this.x > CANVAS_WIDTH + m) return true;
+        return false;
+      }
+    }
+
+    /* --- Simulation Engine --- */
+    class Simulation {
+      constructor() {
+        this.controller = new TrafficController();
+        this.vehicles = { ROAD_A: [], ROAD_B: [], ROAD_C: [], ROAD_D: [] };
+        this.spawnTimers = {
+          ROAD_A: Math.random() * 1.5 + 0.5,
+          ROAD_B: Math.random() * 1.5 + 0.5,
+          ROAD_C: Math.random() * 1.5 + 0.5,
+          ROAD_D: Math.random() * 1.5 + 0.5
+        };
+        this.speedMultiplier = 1.0;
+        this.paused = false;
+      }
+
+      _getSpawnInterval(road) {
+        const volumes = this.controller.getSimulatedVolumes();
+        const vol = volumes[road];
+        const base = (160.0 / Math.max(20, vol)) * 1.05;
+        const jitter = (Math.random() - 0.5) * 0.5;
+        return Math.max(1.1, base + jitter);
+      }
+
+      _canSpawn(road, lane) {
+        const minClear = 65.0;
+        for (const v of this.vehicles[road]) {
+          if (v.lane === lane) {
+            if (road === 'ROAD_A' && v.y < minClear) return false;
+            if (road === 'ROAD_B' && (CANVAS_WIDTH - v.x) < minClear) return false;
+            if (road === 'ROAD_C' && (CANVAS_HEIGHT - v.y) < minClear) return false;
+            if (road === 'ROAD_D' && v.x < minClear) return false;
+          }
+        }
+        return true;
+      }
+
+      _spawnVehicle(road) {
+        const lanes = Math.random() > 0.5 ? [0, 1] : [1, 0];
+        for (const lane of lanes) {
+          if (this._canSpawn(road, lane)) {
+            this.vehicles[road].push(new Vehicle(road, lane));
+            return true;
+          }
+        }
+        return false;
+      }
+
+      update(realDt) {
+        if (this.paused) return;
+        const dt = Math.min(realDt, 0.1) * this.speedMultiplier;
+
+        // 1. Controller Update
+        this.controller.update(dt);
+
+        // 2. Spawn Vehicles
+        ROAD_ORDER.forEach(road => {
+          this.spawnTimers[road] -= dt;
+          if (this.spawnTimers[road] <= 0) {
+            this._spawnVehicle(road);
+            this.spawnTimers[road] = this._getSpawnInterval(road);
+          }
+        });
+
+        // 3. Update Vehicles
+        ROAD_ORDER.forEach(road => {
+          const sigState = this.controller.getSignalState(road);
+          [0, 1].forEach(lane => {
+            const laneCars = this.vehicles[road].filter(v => v.lane === lane);
+            if (road === 'ROAD_A') laneCars.sort((a, b) => b.y - a.y);
+            if (road === 'ROAD_B') laneCars.sort((a, b) => a.x - b.x);
+            if (road === 'ROAD_C') laneCars.sort((a, b) => a.y - b.y);
+            if (road === 'ROAD_D') laneCars.sort((a, b) => b.x - a.x);
+
+            laneCars.forEach((car, i) => {
+              const leader = i > 0 ? laneCars[i - 1] : null;
+              car.update(sigState, leader, dt);
+            });
+          });
+
+          this.vehicles[road] = this.vehicles[road].filter(v => !v.isOffScreen());
+        });
+      }
+
+      reset() {
+        this.controller.reset();
+        this.vehicles = { ROAD_A: [], ROAD_B: [], ROAD_C: [], ROAD_D: [] };
+        ROAD_ORDER.forEach(road => {
+          this.spawnTimers[road] = Math.random() * 1.5 + 0.5;
+        });
+      }
+    }
+
+    /* --- HTML5 Canvas Renderer --- */
+    class Renderer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+      }
+
+      render(simulation) {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        // 1. Landscape Grass & Sidewalk Corners
+        this.drawLandscape(ctx);
+
+        // 2. Roads, Medians, Crosswalks, Stop Bars & Arrows
+        this.drawRoads(ctx);
+
+        // 3. Vehicles
+        this.drawVehicles(ctx, simulation);
+
+        // 4. Traffic Light Gantries with Halos
+        this.drawTrafficLights(ctx, simulation.controller);
+
+        // 5. Road Tags on Canvas
+        this.drawRoadBadges(ctx, simulation.controller);
+      }
+
+      drawLandscape(ctx) {
+        // Base grass lawn
+        ctx.fillStyle = '#22342A';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        // Sidewalk corner pads
+        const corners = [
+          [0, 0, CENTER_X - HALF_ROAD, CENTER_Y - HALF_ROAD],
+          [CENTER_X + HALF_ROAD, 0, CANVAS_WIDTH - (CENTER_X + HALF_ROAD), CENTER_Y - HALF_ROAD],
+          [0, CENTER_Y + HALF_ROAD, CENTER_X - HALF_ROAD, CANVAS_HEIGHT - (CENTER_Y + HALF_ROAD)],
+          [CENTER_X + HALF_ROAD, CENTER_Y + HALF_ROAD, CANVAS_WIDTH - (CENTER_X + HALF_ROAD), CANVAS_HEIGHT - (CENTER_Y + HALF_ROAD)]
+        ];
+
+        corners.forEach(([x, y, w, h]) => {
+          ctx.fillStyle = '#78828C';
+          ctx.fillRect(x, y, w, h);
+          ctx.strokeStyle = '#5A646E';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, w, h);
+
+          // Inner lawn inside sidewalk
+          const m = 16;
+          if (w > m * 2 && h > m * 2) {
+            ctx.fillStyle = '#1C2E24';
+            this.roundRect(ctx, x + m, y + m, w - m * 2, h - m * 2, 8, true);
+          }
+        });
+
+        // Trees
+        const trees = [
+          [120, 110], [220, 180],
+          [CENTER_X + HALF_ROAD + 140, 110], [CENTER_X + HALF_ROAD + 60, 200],
+          [120, CENTER_Y + HALF_ROAD + 130], [210, CENTER_Y + HALF_ROAD + 220],
+          [CENTER_X + HALF_ROAD + 150, CENTER_Y + HALF_ROAD + 140], [CENTER_X + HALF_ROAD + 70, CENTER_Y + HALF_ROAD + 240]
+        ];
+
+        trees.forEach(([tx, ty]) => {
+          // Shadow
+          ctx.beginPath();
+          ctx.arc(tx + 3, ty + 3, 16, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(10, 20, 15, 0.4)';
+          ctx.fill();
+          // Layers
+          ctx.beginPath();
+          ctx.arc(tx, ty, 16, 0, Math.PI * 2);
+          ctx.fillStyle = '#224C30';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(tx - 2, ty - 2, 12, 0, Math.PI * 2);
+          ctx.fillStyle = '#2D623E';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(tx - 4, ty - 4, 7, 0, Math.PI * 2);
+          ctx.fillStyle = '#3C7A4E';
+          ctx.fill();
+        });
+      }
+
+      drawRoads(ctx) {
+        // North-South Road
+        ctx.fillStyle = '#262A30';
+        ctx.fillRect(CENTER_X - HALF_ROAD, 0, ROAD_WIDTH, CANVAS_HEIGHT);
+        // East-West Road
+        ctx.fillRect(0, CENTER_Y - HALF_ROAD, CANVAS_WIDTH, ROAD_WIDTH);
+
+        // Zebra Crosswalks
+        ctx.fillStyle = '#F0F3F6';
+        const stripeW = 7;
+        const stripeH = 20;
+        const gap = 4;
+
+        // North Crosswalk
+        for (let x = CENTER_X - HALF_ROAD + 5; x < CENTER_X + HALF_ROAD - 5; x += stripeW + gap) {
+          ctx.fillRect(x, 290, stripeW, stripeH);
+        }
+        // South Crosswalk
+        for (let x = CENTER_X - HALF_ROAD + 5; x < CENTER_X + HALF_ROAD - 5; x += stripeW + gap) {
+          ctx.fillRect(x, 470, stripeW, stripeH);
+        }
+        // East Crosswalk
+        for (let y = CENTER_Y - HALF_ROAD + 5; y < CENTER_Y + HALF_ROAD - 5; y += stripeW + gap) {
+          ctx.fillRect(485, y, stripeH, stripeW);
+        }
+        // West Crosswalk
+        for (let y = CENTER_Y - HALF_ROAD + 5; y < CENTER_Y + HALF_ROAD - 5; y += stripeW + gap) {
+          ctx.fillRect(315, y, stripeH, stripeW);
+        }
+
+        // Stop Bars (Solid White Line for inbound lanes)
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 4;
+
+        // North Inbound
+        ctx.beginPath();
+        ctx.moveTo(CENTER_X - HALF_ROAD, STOP_LINES.ROAD_A);
+        ctx.lineTo(CENTER_X - 4, STOP_LINES.ROAD_A);
+        ctx.stroke();
+
+        // South Inbound
+        ctx.beginPath();
+        ctx.moveTo(CENTER_X + 4, STOP_LINES.ROAD_C);
+        ctx.lineTo(CENTER_X + HALF_ROAD, STOP_LINES.ROAD_C);
+        ctx.stroke();
+
+        // East Inbound
+        ctx.beginPath();
+        ctx.moveTo(STOP_LINES.ROAD_B, CENTER_Y - HALF_ROAD);
+        ctx.lineTo(STOP_LINES.ROAD_B, CENTER_Y - 4);
+        ctx.stroke();
+
+        // West Inbound
+        ctx.beginPath();
+        ctx.moveTo(STOP_LINES.ROAD_D, CENTER_Y + 4);
+        ctx.lineTo(STOP_LINES.ROAD_D, CENTER_Y + HALF_ROAD);
+        ctx.stroke();
+
+        // Double Yellow Center Medians
+        ctx.strokeStyle = '#F5AF19';
+        ctx.lineWidth = 2;
+        // North
+        this.drawLine(ctx, CENTER_X - 2, 0, CENTER_X - 2, 285);
+        this.drawLine(ctx, CENTER_X + 2, 0, CENTER_X + 2, 285);
+        // South
+        this.drawLine(ctx, CENTER_X - 2, 495, CENTER_X - 2, CANVAS_HEIGHT);
+        this.drawLine(ctx, CENTER_X + 2, 495, CENTER_X + 2, CANVAS_HEIGHT);
+        // East
+        this.drawLine(ctx, 515, CENTER_Y - 2, CANVAS_WIDTH, CENTER_Y - 2);
+        this.drawLine(ctx, 515, CENTER_Y + 2, CANVAS_WIDTH, CENTER_Y + 2);
+        // West
+        this.drawLine(ctx, 0, CENTER_Y - 2, 305, CENTER_Y - 2);
+        this.drawLine(ctx, 0, CENTER_Y + 2, 305, CENTER_Y + 2);
+
+        // Dashed Lane Dividers
+        ctx.strokeStyle = '#E6EBF0';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([12, 14]);
+
+        // North
+        this.drawLine(ctx, CENTER_X - 39, 10, CENTER_X - 39, 275);
+        this.drawLine(ctx, CENTER_X + 39, 10, CENTER_X + 39, 275);
+        // South
+        this.drawLine(ctx, CENTER_X + 39, 505, CENTER_X + 39, CANVAS_HEIGHT - 10);
+        this.drawLine(ctx, CENTER_X - 39, 505, CENTER_X - 39, CANVAS_HEIGHT - 10);
+        // East
+        this.drawLine(ctx, 525, CENTER_Y - 39, CANVAS_WIDTH - 10, CENTER_Y - 39);
+        this.drawLine(ctx, 525, CENTER_Y + 39, CANVAS_WIDTH - 10, CENTER_Y + 39);
+        // West
+        this.drawLine(ctx, 10, CENTER_Y + 39, 295, CENTER_Y + 39);
+        this.drawLine(ctx, 10, CENTER_Y - 39, 295, CENTER_Y - 39);
+
+        ctx.setLineDash([]); // Reset dashed
+
+        // Pavement Directional Arrows
+        this.drawPavementArrow(ctx, CENTER_X - 39, 210, 'DOWN');
+        this.drawPavementArrow(ctx, CENTER_X + 39, 570, 'UP');
+        this.drawPavementArrow(ctx, 600, CENTER_Y - 39, 'LEFT');
+        this.drawPavementArrow(ctx, 220, CENTER_Y + 39, 'RIGHT');
+      }
+
+      drawLine(ctx, x1, y1, x2, y2) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+
+      drawPavementArrow(ctx, cx, cy, dir) {
+        ctx.strokeStyle = '#C8D2DC';
+        ctx.fillStyle = '#C8D2DC';
+        ctx.lineWidth = 5;
+
+        if (dir === 'DOWN') {
+          this.drawLine(ctx, cx, cy - 12, cx, cy + 8);
+          ctx.beginPath();
+          ctx.moveTo(cx - 8, cy + 5);
+          ctx.lineTo(cx + 8, cy + 5);
+          ctx.lineTo(cx, cy + 14);
+          ctx.fill();
+        } else if (dir === 'UP') {
+          this.drawLine(ctx, cx, cy + 12, cx, cy - 8);
+          ctx.beginPath();
+          ctx.moveTo(cx - 8, cy - 5);
+          ctx.lineTo(cx + 8, cy - 5);
+          ctx.lineTo(cx, cy - 14);
+          ctx.fill();
+        } else if (dir === 'LEFT') {
+          this.drawLine(ctx, cx + 12, cy, cx - 8, cy);
+          ctx.beginPath();
+          ctx.moveTo(cx - 5, cy - 8);
+          ctx.lineTo(cx - 5, cy + 8);
+          ctx.lineTo(cx - 14, cy);
+          ctx.fill();
+        } else if (dir === 'RIGHT') {
+          this.drawLine(ctx, cx - 12, cy, cx + 8, cy);
+          ctx.beginPath();
+          ctx.moveTo(cx + 5, cy - 8);
+          ctx.lineTo(cx + 5, cy + 8);
+          ctx.lineTo(cx + 14, cy);
+          ctx.fill();
+        }
+      }
+
+      drawVehicles(ctx, simulation) {
+        ROAD_ORDER.forEach(road => {
+          simulation.vehicles[road].forEach(car => {
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate((car.heading * Math.PI) / 180);
+
+            const w = car.width;
+            const l = car.length;
+
+            // 1. Shadow
+            ctx.fillStyle = 'rgba(10, 15, 20, 0.4)';
+            this.roundRect(ctx, -w / 2 + 2, -l / 2 + 3, w, l, 5, true);
+
+            // 2. Chassis Body
+            ctx.fillStyle = car.palette.body;
+            this.roundRect(ctx, -w / 2, -l / 2, w, l, 5, true);
+            ctx.strokeStyle = '#1E293B';
+            ctx.lineWidth = 1;
+            this.roundRect(ctx, -w / 2, -l / 2, w, l, 5, false, true);
+
+            // 3. Windshields
+            ctx.fillStyle = '#232D37';
+            this.roundRect(ctx, -w / 2 + 3, -l / 2 + 7, w - 6, 6, 2, true);
+            this.roundRect(ctx, -w / 2 + 3, l / 2 - 12, w - 6, 5, 2, true);
+
+            // 4. Roof Cap
+            ctx.fillStyle = car.palette.roof;
+            this.roundRect(ctx, -w / 2 + 3, -l / 2 + 13, w - 6, l - 25, 3, true);
+
+            // 5. Headlights
+            ctx.fillStyle = '#FFFFDC';
+            ctx.fillRect(-w / 2 + 2, -l / 2, 4, 2);
+            ctx.fillRect(w / 2 - 6, -l / 2, 4, 2);
+
+            // 6. Brake / Tail Lights
+            if (car.isBraking || car.stopped) {
+              // Glowing red brake lights
+              ctx.shadowColor = '#FF1E1E';
+              ctx.shadowBlur = 8;
+              ctx.fillStyle = '#FF1E1E';
+              ctx.fillRect(-w / 2 + 2, l / 2 - 2, 4, 2);
+              ctx.fillRect(w / 2 - 6, l / 2 - 2, 4, 2);
+              ctx.shadowBlur = 0; // reset
+            } else {
+              ctx.fillStyle = '#821414';
+              ctx.fillRect(-w / 2 + 2, l / 2 - 2, 4, 2);
+              ctx.fillRect(w / 2 - 6, l / 2 - 2, 4, 2);
+            }
+
+            ctx.restore();
+          });
+        });
+      }
+
+      drawTrafficLights(ctx, controller) {
+        const configs = {
+          ROAD_A: { x: CENTER_X - 110, y: STOP_LINES.ROAD_A - 38, vert: true, label: 'A (North)' },
+          ROAD_B: { x: STOP_LINES.ROAD_B + 8, y: CENTER_Y - 105, vert: false, label: 'B (East)' },
+          ROAD_C: { x: CENTER_X + 85, y: STOP_LINES.ROAD_C - 10, vert: true, label: 'C (South)' },
+          ROAD_D: { x: STOP_LINES.ROAD_D - 75, y: CENTER_Y + 80, vert: false, label: 'D (West)' }
+        };
+
+        const lampR = 6;
+        const spacing = 16;
+
+        ROAD_ORDER.forEach(road => {
+          const cfg = configs[road];
+          const state = controller.getSignalState(road);
+          const hw = cfg.vert ? 24 : 60;
+          const hh = cfg.vert ? 60 : 24;
+
+          // Housing
+          ctx.fillStyle = '#14181C';
+          this.roundRect(ctx, cfg.x, cfg.y, hw, hh, 5, true);
+          ctx.strokeStyle = '#505A64';
+          ctx.lineWidth = 1.5;
+          this.roundRect(ctx, cfg.x, cfg.y, hw, hh, 5, false, true);
+
+          // Lamp positions
+          let rx, ry, yx, yy, gx, gy;
+          if (cfg.vert) {
+            rx = cfg.x + hw / 2; ry = cfg.y + 12;
+            yx = cfg.x + hw / 2; yy = cfg.y + 12 + spacing;
+            gx = cfg.x + hw / 2; gy = cfg.y + 12 + spacing * 2;
+          } else {
+            rx = cfg.x + 12; ry = cfg.y + hh / 2;
+            yx = cfg.x + 12 + spacing; yy = cfg.y + hh / 2;
+            gx = cfg.x + 12 + spacing * 2; gy = cfg.y + hh / 2;
+          }
+
+          // Red Lamp
+          this.drawLamp(ctx, rx, ry, lampR, state === 'RED', '#F53232', '#3C1414', 'rgba(255, 60, 60, 0.6)');
+          // Yellow Lamp
+          this.drawLamp(ctx, yx, yy, lampR, state === 'YELLOW', '#FABE14', '#41370F', 'rgba(250, 190, 20, 0.6)');
+          // Green Lamp
+          this.drawLamp(ctx, gx, gy, lampR, state === 'GREEN', '#23DC73', '#0F3C23', 'rgba(35, 220, 115, 0.6)');
+
+          // Tag Pill
+          ctx.font = 'bold 11px sans-serif';
+          const textW = ctx.measureText(cfg.label).width;
+          const pillX = cfg.x + hw / 2 - textW / 2 - 5;
+          const pillY = cfg.y + hh + 4;
+
+          ctx.fillStyle = '#141920';
+          this.roundRect(ctx, pillX, pillY, textW + 10, 16, 4, true);
+          ctx.strokeStyle = '#3C4650';
+          ctx.lineWidth = 1;
+          this.roundRect(ctx, pillX, pillY, textW + 10, 16, 4, false, true);
+
+          ctx.fillStyle = '#F8FAFC';
+          ctx.fillText(cfg.label, pillX + 5, pillY + 12);
+        });
+      }
+
+      drawLamp(ctx, x, y, r, isOn, onColor, offColor, glowColor) {
+        if (isOn) {
+          ctx.save();
+          // Halo
+          const grad = ctx.createRadialGradient(x, y, 2, x, y, 18);
+          grad.addColorStop(0, glowColor);
+          grad.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(x, y, 18, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Active bulb
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = onColor;
+          ctx.fill();
+
+          // Highlight dot
+          ctx.beginPath();
+          ctx.arc(x - 2, y - 2, 2, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = offColor;
+          ctx.fill();
+        }
+      }
+
+      drawRoadBadges(ctx, controller) {
+        const volumes = controller.getSimulatedVolumes();
+        const badges = [
+          { text: `ROAD A (North) • ${volumes.ROAD_A} veh [Simulated]`, x: CENTER_X - 180, y: 24 },
+          { text: `ROAD B (East) • ${volumes.ROAD_B} veh [Simulated]`, x: 550, y: CENTER_Y - 120 },
+          { text: `ROAD C (South) • ${volumes.ROAD_C} veh [Simulated]`, x: CENTER_X + 25, y: CANVAS_HEIGHT - 38 },
+          { text: `ROAD D (West) • ${volumes.ROAD_D} veh [Simulated]`, x: 24, y: CENTER_Y + 95 }
+        ];
+
+        ctx.font = 'bold 12px sans-serif';
+        badges.forEach(b => {
+          const w = ctx.measureText(b.text).width;
+          ctx.fillStyle = '#0F172A';
+          this.roundRect(ctx, b.x, b.y, w + 16, 22, 6, true);
+          ctx.strokeStyle = '#38BDF8';
+          ctx.lineWidth = 1;
+          this.roundRect(ctx, b.x, b.y, w + 16, 22, 6, false, true);
+
+          ctx.fillStyle = '#F1F5F9';
+          ctx.fillText(b.text, b.x + 8, b.y + 15);
+        });
+      }
+
+      roundRect(ctx, x, y, w, h, r, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
+      }
+    }
+
+    /* --- Application Coordinator & DOM Controller --- */
+    class App {
+      constructor() {
+        this.canvas = document.getElementById('junctionCanvas');
+        this.renderer = new Renderer(this.canvas);
+        this.sim = new Simulation();
+
+        this.lastTime = performance.now();
+        this.setupDOM();
+        this.bindEvents();
+        this.animate = this.animate.bind(this);
+        requestAnimationFrame(this.animate);
+      }
+
+      setupDOM() {
+        this.btnMode = document.getElementById('btnMode');
+        this.btnExp = document.getElementById('btnExp');
+        this.btnSpeed = document.getElementById('btnSpeed');
+        this.btnPause = document.getElementById('btnPause');
+        this.btnReset = document.getElementById('btnReset');
+
+        this.activeRoadTitle = document.getElementById('activeRoadTitle');
+        this.phaseBadgeText = document.getElementById('phaseBadgeText');
+        this.countdownClock = document.getElementById('countdownClock');
+        this.countdownTotal = document.getElementById('countdownTotal');
+        this.progressBarFill = document.getElementById('progressBarFill');
+        this.phaseFooter = document.getElementById('phaseFooter');
+
+        this.tableBody = document.getElementById('tableBody');
+        this.lblTotalVehicles = document.getElementById('lblTotalVehicles');
+
+        this.expCalloutBox = document.getElementById('expCalloutBox');
+        this.expCalloutTitle = document.getElementById('expCalloutTitle');
+        this.expCalloutDesc = document.getElementById('expCalloutDesc');
+
+        this.updateButtonsUI();
+      }
+
+      bindEvents() {
+        this.btnMode.addEventListener('click', () => {
+          this.sim.controller.toggleMode();
+          this.updateButtonsUI();
+        });
+
+        this.btnExp.addEventListener('click', () => {
+          this.sim.controller.toggleExperiment();
+          this.updateButtonsUI();
+        });
+
+        this.btnSpeed.addEventListener('click', () => {
+          const speeds = [1.0, 2.0, 4.0];
+          const cur = this.sim.speedMultiplier;
+          const next = speeds[(speeds.indexOf(cur) + 1) % speeds.length];
+          this.sim.speedMultiplier = next;
+          this.updateButtonsUI();
+        });
+
+        this.btnPause.addEventListener('click', () => {
+          this.sim.paused = !this.sim.paused;
+          this.updateButtonsUI();
+        });
+
+        this.btnReset.addEventListener('click', () => {
+          this.sim.reset();
+          this.updateButtonsUI();
+        });
+
+        // Keyboard Shortcuts matching Pygame
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'm' || e.key === 'M') {
+            this.sim.controller.toggleMode();
+            this.updateButtonsUI();
+          } else if (e.key === 'e' || e.key === 'E') {
+            this.sim.controller.toggleExperiment();
+            this.updateButtonsUI();
+          } else if (e.key === 's' || e.key === 'S') {
+            const speeds = [1.0, 2.0, 4.0];
+            const next = speeds[(speeds.indexOf(this.sim.speedMultiplier) + 1) % speeds.length];
+            this.sim.speedMultiplier = next;
+            this.updateButtonsUI();
+          } else if (e.key === ' ') {
+            e.preventDefault();
+            this.sim.paused = !this.sim.paused;
+            this.updateButtonsUI();
+          } else if (e.key === 'r' || e.key === 'R') {
+            this.sim.reset();
+            this.updateButtonsUI();
+          }
+        });
+      }
+
+      updateButtonsUI() {
+        const ctrl = this.sim.controller;
+
+        // Mode button
+        if (ctrl.mode === 'SMART') {
+          this.btnMode.className = 'btn active-blue';
+          this.btnMode.querySelector('.btn-main-text').textContent = 'MODE: SMART SIGNAL';
+          this.btnMode.querySelector('.btn-sub-text').textContent = 'Proportional Adaptive';
+        } else {
+          this.btnMode.className = 'btn';
+          this.btnMode.querySelector('.btn-main-text').textContent = 'MODE: FIXED SIGNAL';
+          this.btnMode.querySelector('.btn-sub-text').textContent = 'Fixed 25s per road';
+        }
+
+        // Experiment button
+        if (ctrl.experiment === 1) {
+          this.btnExp.className = 'btn';
+          this.btnExp.querySelector('.btn-main-text').textContent = 'EXP 1: BASELINE';
+          this.btnExp.querySelector('.btn-sub-text').textContent = 'Road B = 90 veh [Sim]';
+        } else {
+          this.btnExp.className = 'btn active-green';
+          this.btnExp.querySelector('.btn-main-text').textContent = 'EXP 2: ROAD B SURGE';
+          this.btnExp.querySelector('.btn-sub-text').textContent = 'Road B = 120 veh (+33%)';
+        }
+
+        // Speed button
+        this.btnSpeed.querySelector('.btn-main-text').textContent = `SPEED: ${this.sim.speedMultiplier}x`;
+        if (this.sim.speedMultiplier > 1.0) {
+          this.btnSpeed.style.borderColor = 'var(--accent-cyan)';
+          this.btnSpeed.style.color = '#38BDF8';
+        } else {
+          this.btnSpeed.style.borderColor = '';
+          this.btnSpeed.style.color = '';
+        }
+
+        // Pause button
+        if (this.sim.paused) {
+          this.btnPause.className = 'btn active-red';
+          this.btnPause.querySelector('.btn-main-text').textContent = 'RESUME [>]';
+        } else {
+          this.btnPause.className = 'btn';
+          this.btnPause.querySelector('.btn-main-text').textContent = 'PAUSE [||]';
+        }
+
+        // Experiment 2 Callout box
+        if (ctrl.experiment === 2) {
+          this.expCalloutBox.className = 'exp-callout surge';
+          this.expCalloutTitle.textContent = '✨ EXPERIMENT 2 ACTIVE: Road B Surge Demonstration';
+          this.expCalloutDesc.innerHTML = `
+            • Road B simulated volume increased from 90 to 120 vehicles (+33%).<br>
+            • Smart Controller dynamically expanded Road B green time to <b>44.4s (+6.9s)</b> to accommodate higher simulated demand.
+          `;
+        } else {
+          this.expCalloutBox.className = 'exp-callout';
+          this.expCalloutTitle.textContent = '[EXPERIMENT 1 ACTIVE] Baseline Traffic Volumes';
+          this.expCalloutDesc.innerHTML = `
+            • Road A: 50 | Road B: 90 | Road C: 40 | Road D: 60 vehicles (Simulated).<br>
+            • Click <b>'EXP 1: BASELINE'</b> above to test the Road B surge (120 vehicles).
+          `;
+        }
+      }
+
+      updateDashboard() {
+        const ctrl = this.sim.controller;
+        const volumes = ctrl.getSimulatedVolumes();
+        const activeName = ROAD_NAMES[ctrl.currentRoad];
+        const phase = ctrl.currentPhase;
+        const remTime = ctrl.getRemainingPhaseTime();
+        const totalDur = ctrl.getCurrentPhaseDuration();
+        const frac = ctrl.getProgressFraction();
+
+        // 1. Phase Card
+        this.activeRoadTitle.textContent = `ACTIVE: ${activeName.toUpperCase()}`;
+
+        let phaseColor = 'var(--accent-green)';
+        let phaseText = 'PHASE: GREEN SIGNAL (TRAFFIC FLOWING)';
+        if (phase === 'YELLOW') {
+          phaseColor = 'var(--accent-amber)';
+          phaseText = 'PHASE: YELLOW CLEARANCE (DECELERATION - 3.5s)';
+        } else if (phase === 'ALL_RED') {
+          phaseColor = 'var(--accent-red)';
+          phaseText = 'PHASE: ALL-RED CLEARANCE (SAFETY BUFFER - 2.0s)';
+        }
+
+        this.phaseBadgeText.style.color = phaseColor;
+        this.phaseBadgeText.textContent = phaseText;
+
+        this.countdownClock.style.color = phaseColor;
+        this.countdownClock.textContent = `${remTime.toFixed(1)}s`;
+        this.countdownTotal.textContent = `TOTAL: ${totalDur.toFixed(1)}s`;
+
+        this.progressBarFill.style.background = phaseColor;
+        this.progressBarFill.style.width = `${Math.max(0, (1.0 - frac) * 100)}%`;
+
+        const nextName = ROAD_NAMES[ctrl.nextRoad];
+        this.phaseFooter.textContent = `Cycle #${ctrl.cycleCount} • Next Phase Sequence: ${nextName}`;
+
+        // 2. Data Table
+        let rowsHtml = '';
+        ROAD_ORDER.forEach(road => {
+          const isActive = (road === ctrl.currentRoad);
+          const vol = volumes[road];
+          const fTime = ctrl.fixedTimings[road].toFixed(1);
+          const sTime = ctrl.smartTimings[road].toFixed(1);
+          const sig = ctrl.getSignalState(road);
+
+          let dotClass = 'dot-red';
+          if (sig === 'GREEN') dotClass = 'dot-green';
+          if (sig === 'YELLOW') dotClass = 'dot-yellow';
+
+          const smartHighlight = (ctrl.mode === 'SMART') ? 'color: var(--accent-green); font-weight: 700;' : '';
+
+          rowsHtml += `
+            <tr class="${isActive ? 'active-row' : ''}">
+              <td>${ROAD_NAMES[road]}</td>
+              <td>${vol} veh</td>
+              <td>${fTime}s</td>
+              <td style="${smartHighlight}">${sTime}s</td>
+              <td><span class="dot-indicator ${dotClass}"></span>${sig}</td>
+            </tr>
+          `;
+        });
+        this.tableBody.innerHTML = rowsHtml;
+
+        const totVol = Object.values(volumes).reduce((a, b) => a + b, 0);
+        this.lblTotalVehicles.textContent = `Total Cycle: ${totVol} simulated vehicles`;
+      }
+
+      animate(now) {
+        const dt = (now - this.lastTime) / 1000.0;
+        this.lastTime = now;
+
+        this.sim.update(dt);
+        this.renderer.render(this.sim);
+        this.updateDashboard();
+
+        requestAnimationFrame(this.animate);
+      }
+    }
+
+    // Launch on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      new App();
+    });
+  </script>
+</body>
+</html>
